@@ -1,0 +1,872 @@
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skeletonizer/skeletonizer.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
+import 'dart:convert';
+import 'l10n/app_localizations.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final prefs = await SharedPreferences.getInstance();
+  final isDarkMode = prefs.getBool('isDarkMode') ?? false;
+  final locale = prefs.getString('locale') ?? 'en';
+  runApp(MyApp(initialDarkMode: isDarkMode, initialLocale: locale));
+}
+
+class MyApp extends StatefulWidget {
+  final bool initialDarkMode;
+  final String initialLocale;
+  const MyApp({super.key, required this.initialDarkMode, required this.initialLocale});
+  @override
+  _MyAppState createState() => _MyAppState();
+  static _MyAppState? of(BuildContext context) => context.findAncestorStateOfType<_MyAppState>();
+}
+
+class _MyAppState extends State<MyApp> {
+  late bool isDarkMode;
+  late String locale;
+  bool _isSwitching = false;
+
+  @override
+  void initState() {
+    super.initState();
+    isDarkMode = widget.initialDarkMode;
+    locale = widget.initialLocale;
+  }
+
+  Future<void> toggleTheme() async {
+    setState(() => _isSwitching = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isDarkMode = !isDarkMode;
+      prefs.setBool('isDarkMode', isDarkMode);
+      _isSwitching = false;
+    });
+  }
+
+  Future<void> toggleLanguage() async {
+    setState(() => _isSwitching = true);
+    await Future.delayed(const Duration(milliseconds: 300));
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      locale = locale == 'en' ? 'ar' : 'en';
+      prefs.setString('locale', locale);
+      _isSwitching = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Ahmed ElSHORA Portfolio',
+      theme: AppTheme.lightTheme,
+      darkTheme: AppTheme.darkTheme,
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      locale: Locale(locale),
+      localizationsDelegates: const [
+        AppLocalizations.delegate,
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('en'), Locale('ar')],
+      home: Skeletonizer(
+        enabled: _isSwitching,
+        child: PortfolioPage(),
+      ),
+    );
+  }
+}
+
+class AppTheme {
+  static const _fontFamily = 'Roboto';
+
+  static MaterialColor _createMaterialColor(Color color) {
+    List<double> strengths = <double>[.05];
+    Map<int, Color> swatch = {};
+    final int r = color.red, g = color.green, b = color.blue;
+
+    for (int i = 1; i < 10; i++) {
+      strengths.add(0.1 * i);
+    }
+    for (var strength in strengths) {
+      final double ds = 0.5 - strength;
+      swatch[(strength * 1000).round()] = Color.fromRGBO(
+        r + ((ds < 0 ? r : (255 - r)) * ds).round(),
+        g + ((ds < 0 ? g : (255 - g)) * ds).round(),
+        b + ((ds < 0 ? b : (255 - b)) * ds).round(),
+        1,
+      );
+    }
+    return MaterialColor(color.value, swatch);
+  }
+
+  static final _primarySwatchLight = _createMaterialColor(const Color(0xFF3F51B5));
+  static final _primarySwatchDark = _createMaterialColor(const Color(0xFF546E7A));
+
+  static ThemeData get lightTheme => ThemeData(
+        brightness: Brightness.light,
+        primarySwatch: _primarySwatchLight,
+        scaffoldBackgroundColor: const Color(0xFFE8EAF6),
+        fontFamily: _fontFamily,
+        textTheme: const TextTheme(
+          displayMedium: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF3F51B5)),
+          titleLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.black87),
+          bodyMedium: TextStyle(fontSize: 18, color: Colors.black87),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF3F51B5),
+          foregroundColor: Colors.white,
+          elevation: 4,
+        ),
+        cardTheme: CardThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 8,
+          shadowColor: Colors.grey.withOpacity(0.3),
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            backgroundColor: const Color(0xFF3F51B5),
+            foregroundColor: Colors.white,
+            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            elevation: 2,
+          ).copyWith(
+            overlayColor: MaterialStateProperty.resolveWith<Color?>(
+              (states) {
+                if (states.contains(MaterialState.hovered)) return Colors.indigo[600];
+                if (states.contains(MaterialState.pressed)) return Colors.indigo[700];
+                return null;
+              },
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF3F51B5), width: 2),
+          ),
+          labelStyle: const TextStyle(color: Colors.black54),
+          filled: true,
+          fillColor: Colors.white,
+        ),
+        iconTheme: const IconThemeData(color: Color(0xFF3F51B5), size: 28),
+      );
+
+  static ThemeData get darkTheme => ThemeData(
+        brightness: Brightness.dark,
+        primarySwatch: _primarySwatchDark,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        fontFamily: _fontFamily,
+        textTheme: const TextTheme(
+          displayMedium: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white),
+          titleLarge: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, color: Colors.white70),
+          bodyMedium: TextStyle(fontSize: 18, color: Colors.white70),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF546E7A),
+          foregroundColor: Colors.white,
+          elevation: 4,
+        ),
+        cardTheme: CardThemeData(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 8,
+          shadowColor: Colors.black.withOpacity(0.4),
+          margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          color: const Color(0xFF1E1E1E),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            backgroundColor: const Color(0xFF546E7A),
+            foregroundColor: Colors.white,
+            textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            elevation: 2,
+          ).copyWith(
+            overlayColor: MaterialStateProperty.resolveWith<Color?>(
+              (states) {
+                if (states.contains(MaterialState.hovered)) return Colors.blueGrey[600];
+                if (states.contains(MaterialState.pressed)) return Colors.blueGrey[700];
+                return null;
+              },
+            ),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.grey),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFF546E7A), width: 2),
+          ),
+          labelStyle: const TextStyle(color: Colors.white60),
+          filled: true,
+          fillColor: const Color(0xFF1E1E1E),
+        ),
+        iconTheme: const IconThemeData(color: Color(0xFF546E7A), size: 28),
+      );
+}
+
+class PortfolioPage extends StatefulWidget {
+  const PortfolioPage({super.key});
+  @override
+  _PortfolioPageState createState() => _PortfolioPageState();
+}
+
+class _PortfolioPageState extends State<PortfolioPage> with SingleTickerProviderStateMixin {
+  final ScrollController _scrollController = ScrollController();
+  final GlobalKey _aboutKey = GlobalKey();
+  final GlobalKey _projectsKey = GlobalKey();
+  final GlobalKey _contactKey = GlobalKey();
+  bool _showBackToTop = false;
+  bool _isDrawerOpen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(() {
+      setState(() => _showBackToTop = _scrollController.offset > 150);
+    });
+  }
+
+  void _scrollTo(GlobalKey key) {
+    final ctx = key.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(ctx,
+          duration: const Duration(milliseconds: 800), curve: Curves.easeInOut);
+    }
+  }
+
+  static void _launchCV() async {
+    const url = 'https://drive.google.com/uc?export=download&id=1jVG_iF4HrtiGmrYem7P59KBIeFgz0nug';
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isMobile = screenWidth < 600;
+
+    return Scaffold(
+      appBar: PreferredSize(
+        preferredSize: Size.fromHeight(kToolbarHeight),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          height: kToolbarHeight,
+          child: AppBar(
+            title: _isDrawerOpen
+                ? Text('Ahmed ElSHORA', style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white))
+                : Text(l10n.appTitle, style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white)),
+            actions: isMobile && !_isDrawerOpen
+                ? []
+                : (!isMobile ? [
+                    TextButton(
+                      onPressed: () => _scrollTo(_aboutKey),
+                      child: Text(l10n.aboutMeTitle, style: const TextStyle(color: Colors.white)),
+                    ),
+                    TextButton(
+                      onPressed: () => _scrollTo(_projectsKey),
+                      child: Text(l10n.myProjectsTitle, style: const TextStyle(color: Colors.white)),
+                    ),
+                    TextButton(
+                      onPressed: () => _scrollTo(_contactKey),
+                      child: Text(l10n.contactTitle, style: const TextStyle(color: Colors.white)),
+                    ),
+                    IconButton(
+                      icon: Icon(isDark ? Icons.wb_sunny : Icons.nights_stay),
+                      onPressed: () => MyApp.of(context)?.toggleTheme(),
+                    ),
+                    IconButton(
+                      icon: Text(
+                        Localizations.localeOf(context).languageCode == 'en' ? 'AR' : 'EN',
+                        style: const TextStyle(color: Colors.white),
+                      ),
+                      onPressed: () => MyApp.of(context)?.toggleLanguage(),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: ElevatedButton(onPressed: _launchCV, child: Text(l10n.downloadCV)),
+                    ),
+                  ] : []),
+          ),
+        ),
+      ),
+      drawer: isMobile
+          ? Drawer(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  DrawerHeader(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).primaryColor,
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        CircleAvatar(
+                          radius: 40,
+                          backgroundImage: AssetImage('assets/images/me.jpg'),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Ahmed ElSHORA',
+                          style: Theme.of(context).textTheme.titleLarge?.copyWith(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                  ListTile(
+                    title: Text(l10n.aboutMeTitle),
+                    onTap: () {
+                      _scrollTo(_aboutKey);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    title: Text(l10n.myProjectsTitle),
+                    onTap: () {
+                      _scrollTo(_projectsKey);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    title: Text(l10n.contactTitle),
+                    onTap: () {
+                      _scrollTo(_contactKey);
+                      Navigator.pop(context);
+                    },
+                  ),
+                  Divider(),
+                  ListTile(
+                    leading: Icon(isDark ? Icons.wb_sunny : Icons.nights_stay),
+                    title: Text(isDark ? 'Light Mode' : 'Dark Mode'),
+                    onTap: () {
+                      MyApp.of(context)?.toggleTheme();
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.language),
+                    title: Text(Localizations.localeOf(context).languageCode == 'en' ? 'AR' : 'EN'),
+                    onTap: () {
+                      MyApp.of(context)?.toggleLanguage();
+                      Navigator.pop(context);
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.download),
+                    title: Text(l10n.downloadCV),
+                    onTap: () {
+                      _launchCV();
+                      Navigator.pop(context);
+                    },
+                  ),
+                ],
+              ),
+            )
+          : null,
+      body: SingleChildScrollView(
+        controller: _scrollController,
+        child: Column(
+          children: [
+            AboutMe(key: _aboutKey),
+            const Divider(height: 1),
+            MyProjects(key: _projectsKey),
+            const Divider(height: 1),
+            ContactForm(key: _contactKey),
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              color: isDark ? const Color(0xFF121212) : const Color(0xFFE8EAF6),
+              child: Center(
+                child: Text(
+                  '© 2025 Ahmed ElSHORA. All rights reserved.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: screenWidth > 600 ? 16 : 14,
+                        color: isDark ? Colors.white70 : Colors.black54,
+                      ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      floatingActionButton: _showBackToTop
+          ? FloatingActionButton(
+              onPressed: () => _scrollController.animateTo(0,
+                  duration: const Duration(milliseconds: 800), curve: Curves.easeInOut),
+              backgroundColor: Theme.of(context).primaryColor,
+              child: const Icon(Icons.arrow_upward),
+            )
+          : null,
+      onDrawerChanged: (isOpen) {
+        setState(() => _isDrawerOpen = isOpen);
+      },
+    );
+  }
+}
+
+class AboutMe extends StatefulWidget {
+  const AboutMe({super.key});
+  @override
+  _AboutMeState createState() => _AboutMeState();
+}
+
+class _AboutMeState extends State<AboutMe> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _scaleAnimation;
+  late Animation<double> _opacityAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
+    );
+    _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _controller, curve: Curves.easeIn),
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _launchSocialMedia(String url) async {
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isArabic = Localizations.localeOf(context).languageCode == 'ar';
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    double imageWidth = screenWidth > 600 ? 140 : 100;
+    double imageHeight = screenWidth > 600 ? 180 : 150; // Increased height for smaller screens
+    double cardWidth = screenWidth > 1000 ? 1000 : screenWidth * 0.9;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
+      color: isDark ? const Color(0xFF121212) : const Color(0xFFE8EAF6),
+      child: Center(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return Transform.scale(
+              scale: _scaleAnimation.value,
+              child: Opacity(opacity: _opacityAnimation.value, child: child),
+            );
+          },
+          child: Container(
+            width: cardWidth,
+            child: Card(
+              elevation: 12,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+              child: Padding(
+                padding: const EdgeInsets.all(32),
+                child: Column(
+                  children: [
+                    Row(
+                      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Container(
+                          width: imageWidth,
+                          height: imageHeight,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(12),
+                            boxShadow: [
+                              BoxShadow(
+                                color: isDark ? Colors.black54 : Colors.grey[300]!,
+                                blurRadius: 8,
+                                spreadRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.asset('assets/images/me.jpg', fit: BoxFit.cover),
+                          ),
+                        ),
+                        const SizedBox(width: 32),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.aboutMeTitle,
+                                style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                                      fontSize: screenWidth > 600 ? 32 : 24,
+                                    ),
+                                textAlign: isArabic ? TextAlign.end : TextAlign.start,
+                              ),
+                              const SizedBox(height: 16),
+                              Text(
+                                l10n.aboutMeContent,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      fontSize: screenWidth > 600 ? 18 : 16,
+                                    ),
+                                textAlign: isArabic ? TextAlign.end : TextAlign.start,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Wrap(
+                      alignment: WrapAlignment.center,
+                      spacing: 16,
+                      runSpacing: 16,
+                      children: [
+                        IconButton(
+                          icon: SvgPicture.asset(
+                            'assets/icons/whatsapp.svg',
+                            width: 28,
+                            height: 28,
+                            color: isDark ? Colors.white70 : Colors.indigo,
+                          ),
+                          onPressed: () => _launchSocialMedia('https://wa.me/+201050815073'),
+                          tooltip: 'WhatsApp',
+                        ),
+                        IconButton(
+                          icon: SvgPicture.asset(
+                            'assets/icons/facebook.svg',
+                            width: 28,
+                            height: 28,
+                            color: isDark ? Colors.white70 : Colors.indigo,
+                          ),
+                          onPressed: () => _launchSocialMedia('https://facebook.com/your_profile'),
+                          tooltip: 'Facebook',
+                        ),
+                        IconButton(
+                          icon: SvgPicture.asset(
+                            'assets/icons/instagram.svg',
+                            width: 28,
+                            height: 28,
+                            color: isDark ? Colors.white70 : Colors.indigo,
+                          ),
+                          onPressed: () => _launchSocialMedia('https://instagram.com/your_profile'),
+                          tooltip: 'Instagram',
+                        ),
+                        IconButton(
+                          icon: SvgPicture.asset(
+                            'assets/icons/linkedin.svg',
+                            width: 28,
+                            height: 28,
+                            color: isDark ? Colors.white70 : Colors.indigo,
+                          ),
+                          onPressed: () => _launchSocialMedia('https://linkedin.com/in/your_profile'),
+                          tooltip: 'LinkedIn',
+                        ),
+                        IconButton(
+                          icon: SvgPicture.asset(
+                            'assets/icons/github.svg',
+                            width: 28,
+                            height: 28,
+                            color: isDark ? Colors.white70 : Colors.indigo,
+                          ),
+                          onPressed: () => _launchSocialMedia('https://github.com/A7medElshora/'),
+                          tooltip: 'GitHub',
+                        ),
+                        IconButton(
+                          icon: SvgPicture.asset(
+                            'assets/icons/x.svg',
+                            width: 28,
+                            height: 28,
+                            color: isDark ? Colors.white70 : Colors.indigo,
+                          ),
+                          onPressed: () => _launchSocialMedia('https://x.com/your_profile'),
+                          tooltip: 'X',
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class MyProjects extends StatelessWidget {
+  const MyProjects({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final screenWidth = MediaQuery.of(context).size.width;
+    int crossCount = screenWidth > 1200 ? 3 : screenWidth > 600 ? 2 : 1;
+
+    return Container(
+      padding: const EdgeInsets.all(32),
+      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF121212) : const Color(0xFFE8EAF6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            l10n.myProjectsTitle,
+            style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                  fontSize: screenWidth > 600 ? 32 : 24,
+                ),
+          ),
+          const SizedBox(height: 20),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: crossCount,
+              childAspectRatio: screenWidth > 600 ? 1.5 : 2.0,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+            ),
+            itemCount: projects.length,
+            itemBuilder: (context, i) => ProjectCard(project: projects[i]),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class ProjectCard extends StatelessWidget {
+  final Project project;
+  const ProjectCard({super.key, required this.project});
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final hasLink = project.link.isNotEmpty;
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    return Card(
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              project.name,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: screenWidth > 600 ? 24 : 20,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              project.getDescription(l10n),
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: screenWidth > 600 ? 18 : 16,
+                  ),
+            ),
+            if (hasLink) ...[
+              const Spacer(),
+              Align(
+                alignment: Alignment.bottomRight,
+                child: TextButton(
+                  onPressed: () async {
+                    final uri = Uri.parse(project.link);
+                    if (await canLaunchUrl(uri)) await launchUrl(uri);
+                  },
+                  child: Text(l10n.viewProject),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ContactForm extends StatefulWidget {
+  const ContactForm({super.key});
+  @override
+  _ContactFormState createState() => _ContactFormState();
+}
+
+class _ContactFormState extends State<ContactForm> {
+  final _formKey = GlobalKey<FormState>();
+  String _name = '', _email = '', _message = '';
+  bool _isSubmitting = false;
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _isSubmitting = true);
+    final resp = await http.post(
+      Uri.parse('https://formspree.io/f/xgvzyadj'),
+      headers: {'Content-Type': 'application/json'},
+      body: json.encode({'name': _name, 'email': _email, 'message': _message, '_to': 'elshoraa14@gmail.com'}),
+    );
+    setState(() => _isSubmitting = false);
+    final l10n = AppLocalizations.of(context)!;
+    final messenger = ScaffoldMessenger.of(context);
+    if (resp.statusCode == 200) {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.messageSent)));
+      _formKey.currentState!.reset();
+    } else {
+      messenger.showSnackBar(SnackBar(content: Text(l10n.messageFailed)));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final screenWidth = MediaQuery.of(context).size.width;
+    double formWidth = screenWidth > 600 ? 500 : screenWidth * 0.9;
+
+    return Container(
+      padding: const EdgeInsets.all(32),
+      color: isDark ? const Color(0xFF121212) : const Color(0xFFE8EAF6),
+      child: Center(
+        child: Container(
+          width: formWidth,
+          child: Card(
+            elevation: 12,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            child: Padding(
+              padding: const EdgeInsets.all(32),
+              child: Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.contactTitle,
+                      style: Theme.of(context).textTheme.displayMedium?.copyWith(
+                            fontSize: screenWidth > 600 ? 32 : 24,
+                          ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      children: [
+                        const Icon(Icons.person, size: 28, color: Colors.indigo),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            decoration: InputDecoration(
+                              labelText: l10n.nameLabel,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            validator: (v) => v!.isEmpty ? l10n.nameLabel : null,
+                            onChanged: (v) => _name = v,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Icon(Icons.email, size: 28, color: Colors.indigo),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            decoration: InputDecoration(
+                              labelText: l10n.emailLabel,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            validator: (v) {
+                              if (v!.isEmpty) return l10n.emailLabel;
+                              if (!RegExp(r'^[\w\.-]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(v)) return l10n.emailLabel;
+                              return null;
+                            },
+                            onChanged: (v) => _email = v,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        const Icon(Icons.message, size: 28, color: Colors.indigo),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            decoration: InputDecoration(
+                              labelText: l10n.messageLabel,
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            ),
+                            maxLines: 5,
+                            validator: (v) => v!.isEmpty ? l10n.messageLabel : null,
+                            onChanged: (v) => _message = v,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    Center(
+                      child: ElevatedButton(
+                        onPressed: _submit,
+                        child: Text(l10n.sendMessage),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+                          textStyle: const TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class Project {
+  final String name;
+  final String link;
+  const Project({required this.name, this.link = ''});
+  String getDescription(AppLocalizations l10n) {
+    switch (name) {
+      case 'M3ahed.com':
+        return l10n.m3ashedDescription;
+      case 'El-Gahrib in Biology':
+        return l10n.elGahribDescription;
+      case 'CRM':
+        return l10n.crmDescription;
+      case 'Egy Health':
+        return l10n.egyHealthDescription;
+      default:
+        return '';
+    }
+  }
+}
+
+const projects = <Project>[
+  Project(name: 'M3ahed.com', link: 'https://play.google.com/store/apps/details?id=com.muzamna.m3ahd&pli=1'),
+  Project(name: 'El-Gahrib in Biology'),
+  Project(name: 'CRM'),
+  Project(name: 'Egy Health'),
+];
