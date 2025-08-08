@@ -1,3 +1,4 @@
+import 'package:elshora_portfolio/my_projects.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -439,7 +440,7 @@ class _AboutMeState extends State<AboutMe> with SingleTickerProviderStateMixin {
       duration: const Duration(milliseconds: 800),
       vsync: this,
     );
-    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
+    _scaleAnimation = Tween<double>(begin: 0.92, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Curves.easeOutBack),
     );
     _opacityAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -454,9 +455,11 @@ class _AboutMeState extends State<AboutMe> with SingleTickerProviderStateMixin {
     super.dispose();
   }
 
-  void _launchSocialMedia(String url) async {
+  Future<void> _launchSocialMedia(String url) async {
     final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
   }
 
   @override
@@ -466,13 +469,108 @@ class _AboutMeState extends State<AboutMe> with SingleTickerProviderStateMixin {
     final isArabic = Localizations.localeOf(context).languageCode == 'ar';
     final screenWidth = MediaQuery.of(context).size.width;
 
-    double imageWidth = screenWidth > 600 ? 140 : 100;
-    double imageHeight = screenWidth > 600 ? 180 : 150; // Increased height for smaller screens
-    double cardWidth = screenWidth > 1000 ? 1000 : screenWidth * 0.9;
+    // Breakpoints & responsive sizes
+    final bool isMobile = screenWidth < 600;
+    final double cardWidth = screenWidth > 1000 ? 1000 : screenWidth * 0.94;
 
+    // Image sizing responsive
+    final double desktopImageWidth = 300;
+    final double tabletImageWidth = 220;
+    final double mobileImageWidth = (screenWidth * 0.56).clamp(140.0, 240.0);
+
+    final double imageWidth = screenWidth >= 1000
+        ? desktopImageWidth
+        : screenWidth >= 600
+            ? tabletImageWidth
+            : mobileImageWidth;
+
+    final double imageHeight = imageWidth * 1.18; // portrait style
+
+    // Card internal padding (smaller on mobile)
+    final double cardInnerPadding = isMobile ? 18.0 : 28.0;
+
+    Widget socialIcon(String assetPath, VoidCallback onTap, {String? tooltip}) {
+      return Tooltip(
+        message: tooltip ?? '',
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: isDark ? Colors.white10 : Colors.white,
+              boxShadow: [
+                if (!isDark)
+                  BoxShadow(
+                    color: Colors.grey.withOpacity(0.10),
+                    blurRadius: 6,
+                    offset: const Offset(0, 3),
+                  ),
+              ],
+            ),
+            child: SizedBox(
+              width: 28,
+              height: 28,
+              child: Image.asset(
+                assetPath,
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Icon(
+                    Icons.link,
+                    size: 20,
+                    color: isDark ? Colors.white54 : Colors.indigo,
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // Image widget with border & shadow
+    Widget personImage() {
+      return Container(
+        width: imageWidth,
+        height: imageHeight,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isDark ? Colors.grey.shade900 : Colors.white, width: 4),
+          boxShadow: [
+            BoxShadow(
+              color: isDark ? Colors.black54 : Colors.grey.withOpacity(0.25),
+              blurRadius: 18,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Image.asset(
+            'assets/images/me.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) {
+              return Container(
+                color: isDark ? Colors.grey[850] : Colors.grey[200],
+                child: Center(
+                  child: Icon(
+                    Icons.person,
+                    size: imageWidth * 0.45,
+                    color: isDark ? Colors.white24 : Colors.grey,
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    }
+
+    // MAIN BUILD: different layout for mobile vs larger screens
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 48, horizontal: 16),
-      color: isDark ? const Color(0xFF121212) : const Color(0xFFE8EAF6),
+      padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 12),
+      color: isDark ? const Color(0xFF0F0F10) : const Color(0xFFF3F6FF),
       child: Center(
         child: AnimatedBuilder(
           animation: _controller,
@@ -482,225 +580,209 @@ class _AboutMeState extends State<AboutMe> with SingleTickerProviderStateMixin {
               child: Opacity(opacity: _opacityAnimation.value, child: child),
             );
           },
-          child: Container(
+          child: SizedBox(
             width: cardWidth,
-            child: Card(
-              elevation: 12,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              child: Padding(
-                padding: const EdgeInsets.all(32),
-                child: Column(
-                  children: [
-                    Row(
-                      textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: imageWidth,
-                          height: imageHeight,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(12),
-                            boxShadow: [
-                              BoxShadow(
-                                color: isDark ? Colors.black54 : Colors.grey[300]!,
-                                blurRadius: 8,
-                                spreadRadius: 1,
-                              ),
-                            ],
+            child: isMobile
+                ? // ===== MOBILE LAYOUT =====
+                Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      // Card (starts lower to make room for overlapping image)
+                      Card(
+                        elevation: 10,
+                        shape:
+                            RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        child: Padding(
+                          padding: EdgeInsets.only(
+                            top: imageHeight * 0.38 + cardInnerPadding,
+                            left: cardInnerPadding,
+                            right: cardInnerPadding,
+                            bottom: cardInnerPadding,
                           ),
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.asset('assets/images/me.jpg', fit: BoxFit.cover),
-                          ),
-                        ),
-                        const SizedBox(width: 32),
-                        Expanded(
                           child: Column(
-                            crossAxisAlignment:
-                                isArabic ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: isArabic
+                                ? CrossAxisAlignment.end
+                                : CrossAxisAlignment.start,
                             children: [
                               Text(
                                 l10n.aboutMeTitle,
-                                style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                                      fontSize: screenWidth > 600 ? 32 : 24,
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                textAlign: isArabic ? TextAlign.end : TextAlign.start,
+                              ),
+                              const SizedBox(height: 10),
+                              Text(
+                                l10n.aboutMeContent,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      fontSize: 14.5,
+                                      height: 1.5,
+                                      color: isDark ? Colors.white70 : Colors.black87,
                                     ),
                                 textAlign: isArabic ? TextAlign.end : TextAlign.start,
                               ),
                               const SizedBox(height: 16),
-                              Text(
-                                l10n.aboutMeContent,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      fontSize: screenWidth > 600 ? 18 : 16,
+                              // small divider accent
+                              Row(
+                                children: [
+                                  Container(
+                                    width: 36,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: isDark
+                                            ? [Colors.indigo.shade200, Colors.purple.shade200]
+                                            : [Colors.indigo, Colors.purple],
+                                      ),
+                                      borderRadius: BorderRadius.circular(6),
                                     ),
-                                textAlign: isArabic ? TextAlign.end : TextAlign.start,
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 14),
+                              // Social icons
+                              Align(
+                                alignment:
+                                    isArabic ? Alignment.centerRight : Alignment.centerLeft,
+                                child: Wrap(
+                                  spacing: 10,
+                                  runSpacing: 10,
+                                  children: [
+                                    socialIcon('assets/images/whatsapp.png', () {
+                                      _launchSocialMedia('https://wa.me/+201050815073');
+                                    }, tooltip: 'WhatsApp'),
+                                    socialIcon('assets/images/facebook.png', () {
+                                      _launchSocialMedia('https://facebook.com/your_profile');
+                                    }, tooltip: 'Facebook'),
+                                    socialIcon('assets/images/instagram.png', () {
+                                      _launchSocialMedia('https://instagram.com/your_profile');
+                                    }, tooltip: 'Instagram'),
+                                    socialIcon('assets/images/linkedin.png', () {
+                                      _launchSocialMedia('https://linkedin.com/in/your_profile');
+                                    }, tooltip: 'LinkedIn'),
+                                    socialIcon('assets/images/github.png', () {
+                                      _launchSocialMedia('https://github.com/A7medElshora/');
+                                    }, tooltip: 'GitHub'),
+                                    socialIcon('assets/images/twitter.png', () {
+                                      _launchSocialMedia('https://x.com/your_profile');
+                                    }, tooltip: 'Twitter'),
+                                  ],
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-                    Wrap(
-                      alignment: WrapAlignment.center,
-                      spacing: 16,
-                      runSpacing: 16,
-                      children: [
-                        IconButton(
-                          icon: SvgPicture.asset(
-                            'assets/icons/whatsapp.svg',
-                            width: 28,
-                            height: 28,
-                            color: isDark ? Colors.white70 : Colors.indigo,
+                      ),
+                      // Positioned centered image overlapping top of card
+                      Positioned(
+                        top: -(imageHeight * 0.38),
+                        left: (cardWidth - imageWidth) / 2, // center horizontally
+                        child: personImage(),
+                      ),
+                    ],
+                  )
+                : // ===== DESKTOP / TABLET LAYOUT =====
+                Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Card(
+                        elevation: 14,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+                        child: Padding(
+                          padding: EdgeInsets.all(cardInnerPadding),
+                          child: Row(
+                            textDirection: isArabic ? TextDirection.rtl : TextDirection.ltr,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Reserve inside space for the half overlay
+                              SizedBox(width: imageWidth / 2 + 12),
+                              const SizedBox(width: 18),
+                              // Content
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: isArabic
+                                      ? CrossAxisAlignment.end
+                                      : CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      l10n.aboutMeTitle,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .displaySmall
+                                          ?.copyWith(fontSize: 28, fontWeight: FontWeight.w800),
+                                      textAlign: isArabic ? TextAlign.end : TextAlign.start,
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      l10n.aboutMeContent,
+                                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                            fontSize: 16.5,
+                                            height: 1.5,
+                                            color: isDark ? Colors.white70 : Colors.black87,
+                                          ),
+                                      textAlign: isArabic ? TextAlign.end : TextAlign.start,
+                                    ),
+                                    const SizedBox(height: 18),
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 42,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            gradient: LinearGradient(
+                                              colors: isDark
+                                                  ? [Colors.indigo.shade200, Colors.purple.shade200]
+                                                  : [Colors.indigo, Colors.purple],
+                                            ),
+                                            borderRadius: BorderRadius.circular(8),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 18),
+                                    Wrap(
+                                      spacing: 12,
+                                      runSpacing: 12,
+                                      children: [
+                                        socialIcon('assets/images/whatsapp.png', () {
+                                          _launchSocialMedia('https://wa.me/+201050815073');
+                                        }, tooltip: 'WhatsApp'),
+                                        socialIcon('assets/images/facebook.png', () {
+                                          _launchSocialMedia('https://facebook.com/your_profile');
+                                        }, tooltip: 'Facebook'),
+                                        socialIcon('assets/images/instagram.png', () {
+                                          _launchSocialMedia('https://instagram.com/your_profile');
+                                        }, tooltip: 'Instagram'),
+                                        socialIcon('assets/images/linkedin.png', () {
+                                          _launchSocialMedia('https://linkedin.com/in/your_profile');
+                                        }, tooltip: 'LinkedIn'),
+                                        socialIcon('assets/images/github.png', () {
+                                          _launchSocialMedia('https://github.com/A7medElshora/');
+                                        }, tooltip: 'GitHub'),
+                                        socialIcon('assets/images/twitter.png', () {
+                                          _launchSocialMedia('https://x.com/your_profile');
+                                        }, tooltip: 'Twitter'),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                          onPressed: () => _launchSocialMedia('https://wa.me/+201050815073'),
-                          tooltip: 'WhatsApp',
                         ),
-                        IconButton(
-                          icon: SvgPicture.asset(
-                            'assets/icons/facebook.svg',
-                            width: 28,
-                            height: 28,
-                            color: isDark ? Colors.white70 : Colors.indigo,
-                          ),
-                          onPressed: () => _launchSocialMedia('https://facebook.com/your_profile'),
-                          tooltip: 'Facebook',
-                        ),
-                        IconButton(
-                          icon: SvgPicture.asset(
-                            'assets/icons/instagram.svg',
-                            width: 28,
-                            height: 28,
-                            color: isDark ? Colors.white70 : Colors.indigo,
-                          ),
-                          onPressed: () => _launchSocialMedia('https://instagram.com/your_profile'),
-                          tooltip: 'Instagram',
-                        ),
-                        IconButton(
-                          icon: SvgPicture.asset(
-                            'assets/icons/linkedin.svg',
-                            width: 28,
-                            height: 28,
-                            color: isDark ? Colors.white70 : Colors.indigo,
-                          ),
-                          onPressed: () => _launchSocialMedia('https://linkedin.com/in/your_profile'),
-                          tooltip: 'LinkedIn',
-                        ),
-                        IconButton(
-                          icon: SvgPicture.asset(
-                            'assets/icons/github.svg',
-                            width: 28,
-                            height: 28,
-                            color: isDark ? Colors.white70 : Colors.indigo,
-                          ),
-                          onPressed: () => _launchSocialMedia('https://github.com/A7medElshora/'),
-                          tooltip: 'GitHub',
-                        ),
-                        IconButton(
-                          icon: SvgPicture.asset(
-                            'assets/icons/x.svg',
-                            width: 28,
-                            height: 28,
-                            color: isDark ? Colors.white70 : Colors.indigo,
-                          ),
-                          onPressed: () => _launchSocialMedia('https://x.com/your_profile'),
-                          tooltip: 'X',
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class MyProjects extends StatelessWidget {
-  const MyProjects({super.key});
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final screenWidth = MediaQuery.of(context).size.width;
-    int crossCount = screenWidth > 1200 ? 3 : screenWidth > 600 ? 2 : 1;
-
-    return Container(
-      padding: const EdgeInsets.all(32),
-      color: Theme.of(context).brightness == Brightness.dark ? const Color(0xFF121212) : const Color(0xFFE8EAF6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.myProjectsTitle,
-            style: Theme.of(context).textTheme.displayMedium?.copyWith(
-                  fontSize: screenWidth > 600 ? 32 : 24,
-                ),
-          ),
-          const SizedBox(height: 20),
-          GridView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: crossCount,
-              childAspectRatio: screenWidth > 600 ? 1.5 : 2.0,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
-            ),
-            itemCount: projects.length,
-            itemBuilder: (context, i) => ProjectCard(project: projects[i]),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class ProjectCard extends StatelessWidget {
-  final Project project;
-  const ProjectCard({super.key, required this.project});
-  @override
-  Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    final hasLink = project.link.isNotEmpty;
-    final screenWidth = MediaQuery.of(context).size.width;
-
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              project.name,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontSize: screenWidth > 600 ? 24 : 20,
+                      ),
+                      // Positioned image half-inside, half-outside (left or right depending on locale)
+                      Positioned(
+                        top: cardInnerPadding,
+                        left: isArabic ? null : -(imageWidth / 2),
+                        right: isArabic ? -(imageWidth / 2) : null,
+                        child: personImage(),
+                      ),
+                    ],
                   ),
-            ),
-            const SizedBox(height: 10),
-            Text(
-              project.getDescription(l10n),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: screenWidth > 600 ? 18 : 16,
-                  ),
-            ),
-            if (hasLink) ...[
-              const Spacer(),
-              Align(
-                alignment: Alignment.bottomRight,
-                child: TextButton(
-                  onPressed: () async {
-                    final uri = Uri.parse(project.link);
-                    if (await canLaunchUrl(uri)) await launchUrl(uri);
-                  },
-                  child: Text(l10n.viewProject),
-                ),
-              ),
-            ],
-          ],
+          ),
         ),
       ),
     );
@@ -843,30 +925,3 @@ class _ContactFormState extends State<ContactForm> {
     );
   }
 }
-
-class Project {
-  final String name;
-  final String link;
-  const Project({required this.name, this.link = ''});
-  String getDescription(AppLocalizations l10n) {
-    switch (name) {
-      case 'M3ahed.com':
-        return l10n.m3ashedDescription;
-      case 'El-Gahrib in Biology':
-        return l10n.elGahribDescription;
-      case 'CRM':
-        return l10n.crmDescription;
-      case 'Egy Health':
-        return l10n.egyHealthDescription;
-      default:
-        return '';
-    }
-  }
-}
-
-const projects = <Project>[
-  Project(name: 'M3ahed.com', link: 'https://play.google.com/store/apps/details?id=com.muzamna.m3ahd&pli=1'),
-  Project(name: 'El-Gahrib in Biology'),
-  Project(name: 'CRM'),
-  Project(name: 'Egy Health'),
-];
