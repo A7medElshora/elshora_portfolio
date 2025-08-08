@@ -3,7 +3,7 @@
   "aboutMeTitle": "About Me",
   "aboutMeContent": "I am Ahmed ElSHORA, a passionate Flutter Developer based in Cairo, Egypt. Currently working at Tabibsoft Inc. since December 2024, I specialize in creating mobile and web applications using Flutter and Dart. With a B.S. in Information Technology from the Egyptian e-Learning University (2019-2023), I have developed a strong foundation in app development, including real-time chatting with WebSocket/SignalR, push notifications with Firebase (FCM), and deploying apps to the Google Play Store. My goal is to build intuitive and impactful solutions that enhance user experiences.",
   "myProjectsTitle": "My Projects",
-  "contactTitle": "Contact Us",
+  "contactTitle": "Contact me",
   "downloadCV": "Download CV",
   "nameLabel": "Name",
   "emailLabel": "Email",
@@ -15,8 +15,12 @@
   "m3ashedDescription": "An educational app providing accessible learning resources in Arabic.",
   "elGahribDescription": "App for biology education with videos, documents, and chat features.",
   "crmDescription": "Internal app for TabibSoft to manage tasks and operations.",
-  "egyHealthDescription": "A medical tourism app enhancing healthcare accessibility."
-  ,
+  "egyHealthDescription": "A medical tourism app enhancing healthcare accessibility.",
+  "m3ashedDetails": "Technologies: Flutter, Firebase\nFeatures: User authentication, real-time database, interactive lessons",
+  "elGahribDetails": "Technologies: Flutter, SQLite\nFeatures: Offline support, interactive quizzes, video tutorials",
+  "crmDetails": "Technologies: Flutter, REST API\nFeatures: Customer management, analytics dashboard, task tracking",
+  "egyHealthDetails": "Technologies: Flutter, Cloud Firestore\nFeatures: Appointment booking, health tracking, multilingual support",
+  "projectDetails": "Project Details",
   "lightMode": "Light Mode",
   "darkMode": "Dark Mode"
 }
